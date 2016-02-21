@@ -5,6 +5,7 @@ using RelationsInspector.Backend;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.EventSystems;
+using UnityEngine.Events;
 
 namespace EventInspector
 {
@@ -54,19 +55,20 @@ namespace EventInspector
 			if ( asComponent == null )
 				yield break;
 
-			var eventGroups = UIEventUtilitly.uiEventFieldMap
-				.Where( pair => pair.Key.componentType == asComponent.GetType() )
-				.GroupBy( pair => pair.Value );
+			var eventGroups = UIEventUtilitly
+				.GetEventRefs( asComponent.GetType() )( asComponent )
+				.GroupBy( r => r.name )
+				.Select( gr => gr.First() );
 
-			foreach ( var group in eventGroups )
+			foreach ( var eventRef in eventGroups )
 			{
-				string label = group.Key.Name;	//string.Join( "\n", group.Select( item => item.Key.eventHandlerType.Name ).ToArray() );
-				var ev = (UnityEngine.Events.UnityEventBase) group.Key.GetValue( asComponent );
-				var eventProperty = new SerializedObject( asComponent ).FindProperty( group.Key.Name );
+				string label = eventRef.name;//.GetName(); 
+				var eventObject = eventRef.getValue( asComponent );
+				var eventProperty = eventRef.getProp( asComponent );
 
 				// extract event listener data
 				var listenerData = EventUtility
-					.GetListenerData( ev, eventProperty )
+					.GetListenerData( eventObject, eventProperty )
 					.Where( record => record.IsValid() );
 
 				// add it to the graph
@@ -147,7 +149,10 @@ namespace EventInspector
 			var asRecord = entity as ListenerData;
 			if ( asRecord != null )
 			{
-				return "<b>Target</b>: " + asRecord.target + "\n<b>Method</b>: " + asRecord.method + "\n<b>Argument</b>: " + asRecord.argument;
+				return 
+					"<b>Target</b>: " + asRecord.target + 
+					"\n<b>Method</b>: " + asRecord.method + 
+					"\n<b>Argument</b>: " + asRecord.argument;
 			}
 
 			return entity.ToString();
