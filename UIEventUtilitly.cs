@@ -23,11 +23,12 @@ namespace EventInspector
 		}
 	}
 
+	// event data needed for UI and extracting listener info 
 	public struct EventRef
 	{
 		public string name;
-		public UnityEventBase value;	//GetValue getValue;
-		public SerializedProperty prop;	//GetProp getProp;
+		public UnityEventBase value;
+		public SerializedProperty prop;
 	}
 
 	public class UIEventUtilitly
@@ -45,24 +46,28 @@ namespace EventInspector
 		// caching the event list field of EventTrigger to save computation
 		static FieldInfo EventTriggerListField = typeof( EventTrigger ).GetField( "m_Delegates", eventFieldFlags );
 
+		// returns EventRefs for all UI events exposed by the component
 		public static IEnumerable<EventRef> GetEventRefs( Component component )
 		{
-			var compType = component.GetType();
-
-			if ( compType == typeof( EventTrigger ) )
+			// EventTriggers store their events in a list
+			var asEventTrigger = component as EventTrigger;
+			if ( asEventTrigger != null )
 			{
 				return Enum
 					.GetValues( typeof( EventTriggerType ) )
 					.Cast<EventTriggerType>()
-					.SelectMany( ett => GetTriggerEventRefs( component, ett ) );
+					.SelectMany( ett => GetTriggerEventRefs( asEventTrigger, ett ) );
 			}
 
+			// all others UI components have one field per event
+			var compType = component.GetType();
 			return uiEventFieldMap
 				.Where( pair => pair.Key.componentType == compType )
 				.Select( pair => pair.Value )
 				.Select( fInfo => GetFieldEventRef( fInfo, component ) );
 		}
 
+		// returns EventRef for the component's given event field
 		static EventRef GetFieldEventRef( FieldInfo fInfo, Component component)
 		{
 			return new EventRef()
@@ -73,17 +78,21 @@ namespace EventInspector
 			};
 		}
 
-		static EventRef[] GetTriggerEventRefs( Component component, EventTriggerType eventTriggerType )
+		// returns EventRefs for those entries in the trigger's event list that match the given type
+		static EventRef[] GetTriggerEventRefs( EventTrigger eventTrigger, EventTriggerType eventTriggerType )
 		{
-			var entries = (List<EventTrigger.Entry>) EventTriggerListField.GetValue( component );
+			// extract the list field value
+			var entries = (List<EventTrigger.Entry>) EventTriggerListField.GetValue( eventTrigger );
 
+			// filter the list by event type and convert it to EventRefs
 			return Enumerable
 				.Range( 0, entries.Count )
 				.Where( i => entries[ i ].eventID == eventTriggerType )
-				.Select( i => GetTriggerEventRef( entries, i, component ) )
+				.Select( i => GetTriggerEventRef( entries, i, eventTrigger ) )
 				.ToArray();
 		}
 
+		// convert a list entry to EventRef
 		static EventRef GetTriggerEventRef( List<EventTrigger.Entry> events, int index, Component component )
 		{
 			return new EventRef()

@@ -55,12 +55,13 @@ namespace EventInspector
 			if ( asComponent == null )
 				yield break;
 
-			var eventGroups = UIEventUtilitly
+			// get all of the component's UI events, without duplicates
+			var eventReferences = UIEventUtilitly
 				.GetEventRefs( asComponent )
 				.GroupBy( r => r.name )
 				.Select( gr => gr.First() );
 
-			foreach ( var eventRef in eventGroups )
+			foreach ( var eventRef in eventReferences )
 			{
 				// extract event listener data
 				var listenerData = EventUtility
@@ -78,12 +79,15 @@ namespace EventInspector
 			// toolbar
 			GUILayout.BeginHorizontal( EditorStyles.toolbar );
 			{
+				// button: generate a new graph from the active scene
 				if ( GUILayout.Button( "Show all scene events", EditorStyles.toolbarButton, GUILayout.ExpandWidth( false ) ) )
 				{
 					api.ResetTargets( new object[] { sceneObj } );
 				}
 
 				GUILayout.Space( 35 );
+
+				// choice: how to handle node selection
 				EditorGUIUtility.labelWidth = 80;
 				GUILayout.Label( "On node click:", EditorStyles.miniLabel );
 				onNodeClick = (OnNodeClick) EditorGUILayout.EnumPopup( onNodeClick, EditorStyles.toolbarPopup, GUILayout.Width(120) );
@@ -95,6 +99,8 @@ namespace EventInspector
 			return base.OnGUI();
 		}
 
+		// node context menu
+		// if a listener calls code in the game dlls, add the option to open the source file
 		public override void OnEntityContextClick( IEnumerable<object> entities, GenericMenu menu )
 		{
 			if ( entities.Count() == 1 )
@@ -117,6 +123,7 @@ namespace EventInspector
 			}
 		}
 
+		// returns all scene components that implement a UI event interface
 		IEnumerable<Component> GetUIEventHandlers()
 		{
 			// this way we also get the inactive gameobjects
@@ -133,6 +140,7 @@ namespace EventInspector
 			return type != PrefabType.None && type != PrefabType.PrefabInstance;
 		}
 
+		// node tooltip
 		public override string GetEntityTooltip( object entity )
 		{
 			if ( entity == sceneObj )
