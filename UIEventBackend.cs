@@ -162,6 +162,7 @@ namespace EventInspector
 			return entity.ToString();
 		}
 
+		// handle node selection change, depending on the users choice (onNodeClick)
 		public override void OnEntitySelectionChange( object[] selection )
 		{
 			if ( ignoreNextSelectionChange )
@@ -189,6 +190,7 @@ namespace EventInspector
 			}
 		}
 
+		// adjust to object selection changes that happen outside the window
 		public override void OnUnitySelectionChange()
 		{
 			ignoreNextSelectionChange = true;
@@ -199,6 +201,7 @@ namespace EventInspector
 				} );
 		}
 
+		// returns GUIContent to be shown in the node's widget
 		public override GUIContent GetContent( object entity )
 		{
 			if ( entity == sceneObj )
