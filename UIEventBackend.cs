@@ -56,24 +56,20 @@ namespace EventInspector
 				yield break;
 
 			var eventGroups = UIEventUtilitly
-				.GetEventRefs( asComponent.GetType() )( asComponent )
+				.GetEventRefs( asComponent )
 				.GroupBy( r => r.name )
 				.Select( gr => gr.First() );
 
 			foreach ( var eventRef in eventGroups )
 			{
-				string label = eventRef.name;//.GetName(); 
-				var eventObject = eventRef.getValue( asComponent );
-				var eventProperty = eventRef.getProp( asComponent );
-
 				// extract event listener data
 				var listenerData = EventUtility
-					.GetListenerData( eventObject, eventProperty )
+					.GetListenerData( eventRef.value, eventRef.prop )
 					.Where( record => record.IsValid() );
 
 				// add it to the graph
 				foreach ( var record in listenerData )
-					yield return new Relation<object, string>( entity, record, label );
+					yield return new Relation<object, string>( entity, record, eventRef.name );
 			}
 		}
 

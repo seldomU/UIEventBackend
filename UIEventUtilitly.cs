@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using Object = UnityEngine.Object;
 
 namespace EventInspector
 {
@@ -25,13 +25,9 @@ namespace EventInspector
 
 	public struct EventRef
 	{
-		public delegate IEnumerable<EventRef> GetEventRefs( Object o );
-		public delegate UnityEventBase GetValue( Object o );
-		public delegate SerializedProperty GetProp( Object o );
-
 		public string name;
-		public GetValue getValue;
-		public GetProp getProp;
+		public UnityEventBase value;	//GetValue getValue;
+		public SerializedProperty prop;	//GetProp getProp;
 	}
 
 	public class UIEventUtilitly
@@ -49,50 +45,52 @@ namespace EventInspector
 		// caching the event list field of EventTrigger to save computation
 		static FieldInfo EventTriggerListField = typeof( EventTrigger ).GetField( "m_Delegates", eventFieldFlags );
 
-		public static EventRef.GetEventRefs GetEventRefs( Type componentType )
+		public static IEnumerable<EventRef> GetEventRefs( Component component )
 		{
-			if ( componentType == typeof( EventTrigger ) )
+			var compType = component.GetType();
+
+			if ( compType == typeof( EventTrigger ) )
 			{
-				return ( o ) => Enum
+				return Enum
 					.GetValues( typeof( EventTriggerType ) )
 					.Cast<EventTriggerType>()
-					.SelectMany( ett => GetTriggerEventRefs( o, ett ) );
+					.SelectMany( ett => GetTriggerEventRefs( component, ett ) );
 			}
 
-			return ( o ) => uiEventFieldMap
-				.Where( pair => pair.Key.componentType == componentType )
+			return uiEventFieldMap
+				.Where( pair => pair.Key.componentType == compType )
 				.Select( pair => pair.Value )
-				.Select( fInfo => GetFieldEventRef( fInfo ) );
+				.Select( fInfo => GetFieldEventRef( fInfo, component ) );
 		}
 
-		static EventRef GetFieldEventRef( FieldInfo fInfo)
+		static EventRef GetFieldEventRef( FieldInfo fInfo, Component component)
 		{
 			return new EventRef()
 			{
 				name = fInfo.Name,
-				getValue = ( o ) => (UnityEventBase) fInfo.GetValue( o ),
-				getProp = ( o ) => new SerializedObject( o ).FindProperty( fInfo.Name )
+				value = (UnityEventBase) fInfo.GetValue( component ),
+				prop = new SerializedObject( component ).FindProperty( fInfo.Name )
 			};
 		}
 
-		static EventRef[] GetTriggerEventRefs( Object obj, EventTriggerType eventTriggerType )
+		static EventRef[] GetTriggerEventRefs( Component component, EventTriggerType eventTriggerType )
 		{
-			var entries = (List<EventTrigger.Entry>) EventTriggerListField.GetValue( obj );
+			var entries = (List<EventTrigger.Entry>) EventTriggerListField.GetValue( component );
 
 			return Enumerable
 				.Range( 0, entries.Count )
 				.Where( i => entries[ i ].eventID == eventTriggerType )
-				.Select( i => GetTriggerEventRef( entries, i ) )
+				.Select( i => GetTriggerEventRef( entries, i, component ) )
 				.ToArray();
 		}
 
-		static EventRef GetTriggerEventRef( List<EventTrigger.Entry> events, int index )
+		static EventRef GetTriggerEventRef( List<EventTrigger.Entry> events, int index, Component component )
 		{
 			return new EventRef()
 			{
 				name =  "Event " + index + ": " + events[index].eventID,	// EventTriggerListField.Name
-				getValue = ( o ) => events[ index ].callback,
-				getProp = ( o ) => new SerializedObject( o )
+				value = events[ index ].callback,
+				prop = new SerializedObject( component )
 					.FindProperty( EventTriggerListField.Name )
 					.GetArrayElementAtIndex( index )
 					.FindPropertyRelative( "callback" )
